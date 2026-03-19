@@ -1,0 +1,58 @@
+server:
+  port: 8084
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+    register-with-eureka: true
+    fetch-registry: true
+    healthcheck:
+      enabled: true
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enable: true
+
+      server:
+        webflux:
+          routes:
+            - id: user-service
+              uri: lb://user-service
+              predicates:
+                - Path=/api/users/**
+              filters:
+                args:
+                  name: userServiceCB
+                  fallbackUri: forward:/fallback/user-service
+            - id: notification-service
+              uri: lb://notification-service
+              predicates:
+                - Path=/api/notification/**
+              filters:
+                args:
+                  name: notificationServiceCB
+                  fallbackUri: forward:/fallback/notification-service
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      userServiceCB:
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 10s
+        sliding-window-size: 5
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+      notificationServiceCB:
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 10s
+        sliding-window-size: 5
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+    metrics:
+      enabled: true
